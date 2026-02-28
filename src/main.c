@@ -1,18 +1,131 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
+#include <ctype.h>
+
+#include "tds/da.h"
+
+#define BUFFER_SIZE 256
+#define TOKENS_CAPACITY 64
+
+typedef enum {
+    NUMBER,
+    PLUS,
+} tktype;
+
+
+typedef struct {
+    int data;
+    tktype type;
+} token;
+
+void token_print(token* t) {
+    switch (t->type) {
+    case NUMBER:
+        printf("NUMBER(%d)\n", t->data);
+        break;
+    case PLUS:
+        printf("PLUS\n");
+        break;
+    default:
+        break;
+    }
+}
+
+// Reads and null-terminates input string from stdin.
+void read_input(char* buffer, size_t buffer_size);
+
+// Returns true if input is not valid or user typed 'q'.
+bool should_quit(char* buffer);
+
+// Processes input to produce array of tokens. Returns true if errors were found.
+bool tokenize(const char* buffer, da* tokens);
+
+// Returns true if char is a plus sign
+bool is_plus(char c);
+
+// Returns true if char is a white space
+bool is_whitespace(char c);
+
+// Reads series of digits from buffer and converts it into a token
+bool tokenize_digits(const char* buffer, size_t* index, da* tokens);
 
 int main(void) {
-    char buffer[256];
-    
-    printf(" evalx v0.1 ('q' to quit) \n");
+    char buffer[BUFFER_SIZE];
+    da* tokens = da_alloc(sizeof(token), TOKENS_CAPACITY);
 
     while (1) {
         printf("  > ");
-        if (!fgets(buffer, sizeof(buffer), stdin)) break;
-        buffer[strcspn(buffer, "\n")] = 0;
-        if (strcmp(buffer, "q") == 0) break;
-
-        printf("You typed: %s\n", buffer);
+        read_input(buffer, sizeof(buffer));
+        if (should_quit(buffer)) break;
+        if (tokenize(buffer, tokens)) {
+            printf("  > Error: syntax not valid.\n");
+            continue;
+        }
+        for (size_t i = 0; i < tokens->count; ++i) {
+            token t;
+            da_get(tokens, i, &t);
+            token_print(&t);
+        }
     }
+
     return 0;
+}
+
+void read_input(char* buffer, size_t buffer_size) {
+    buffer = fgets(buffer, buffer_size, stdin);
+    if (buffer) buffer[strcspn(buffer, "\n")] = '\0';
+}
+
+bool should_quit(char* buffer) {
+    if (!buffer) return true;
+    if (strcmp(buffer, "q") == 0) return true;
+    return false;
+}
+
+bool tokenize_digits(const char* buffer, size_t* index, da* tokens) {
+    char c = buffer[*index];
+    char dbuff[64];
+    size_t j = 0;
+    do {
+        dbuff[j++] = c;
+        c = buffer[++(*index)];
+        if (j == 64) return true;
+    } while (isdigit(c));
+
+    dbuff[j] = '\0';
+    int value = atoi(dbuff);
+    token t = {value, NUMBER};
+    da_append(tokens, &t);
+    return false;
+}
+
+bool tokenize(const char* buffer, da* tokens) {
+    tokens->count = 0;
+    size_t i = 0;
+    while (buffer[i] != '\0') {
+        if (is_whitespace(buffer[i])) {
+            i++;
+            continue;
+        }
+        else if (isdigit(buffer[i])) {
+            if (tokenize_digits(buffer, &i, tokens)) return true; 
+        }
+
+        else if (is_plus(buffer[i])) {
+            token t = {0, PLUS};
+            da_append(tokens, &t);
+            i++;
+        }
+        else return true;
+    }
+    return false;
+}
+
+bool is_plus(char c) {
+    return c == '+';
+}
+
+bool is_whitespace(char c) {
+    return c == ' ' || c == '\t';
 }

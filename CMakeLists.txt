@@ -8,6 +8,8 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_BUILD_TYPE DEBUG)
 
+add_compile_options(-Wall -Wextra -Wpedantic)
+
 add_executable(evalx src/main.c)
 
 target_include_directories(evalx PUBLIC include)
