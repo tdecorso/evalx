@@ -292,15 +292,15 @@ bool parse_term(parser* p, da* tokens, int* result) {
     while (is_mult || is_div) {
         if (is_mult) {
             parser_consume(p, tokens, MULTIPLY);
-            if (p->curr.type != NUMBER) return true;
-            *result *= p->curr.data;
-            parser_consume(p, tokens, NUMBER);
+            int value = p->curr.data;
+            if (parse_factor(p, tokens, &value)) return true;
+            *result *= value;
         }
         if (is_div) {
             parser_consume(p, tokens, DIVIDE);
-            if (p->curr.type != NUMBER) return true;
-            *result /= p->curr.data;
-            parser_consume(p, tokens, NUMBER);
+            int value = p->curr.data;
+            if (parse_factor(p, tokens, &value)) return true;
+            *result /= value;
         }
     
         is_mult = p->curr.type == MULTIPLY;
@@ -319,14 +319,12 @@ bool parse_expression(parser* p, da* tokens, int* result) {
     while (is_add || is_sub) {
         if (is_add) {
             parser_consume(p, tokens, PLUS);
-            if (p->curr.type != NUMBER) return true;
             int value = p->curr.data;
             if (parse_term(p, tokens, &value)) return true;
             *result += value;
         }
         if (is_sub) {
             parser_consume(p, tokens, MINUS);
-            if (p->curr.type != NUMBER) return true;
             int value = p->curr.data;
             if (parse_term(p, tokens, &value)) return true;
             *result -= value;
