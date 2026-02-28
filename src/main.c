@@ -11,6 +11,9 @@
 typedef enum {
     NUMBER,
     PLUS,
+    MINUS,
+    MULTIPLY,
+    DIVIDE,
     END,
 } tktype;
 
@@ -39,6 +42,15 @@ bool should_quit(char* buffer);
 // Returns true if char is a plus sign
 bool is_plus(char c);
 
+// Returns true if char is a minus sign
+bool is_minus(char c);
+
+// Returns true if char is a star sign
+bool is_mult(char c);
+
+// Returns true if char is a slash sign
+bool is_div(char c);
+
 // Returns true if char is a white space
 bool is_whitespace(char c);
 
@@ -53,6 +65,12 @@ void parser_advance(parser* p, da* tokens);
 
 // Makes parser advance if current token type matches expected.
 void parser_consume(parser* p, da* tokens, tktype expected);
+
+// Parses multiplication and division. Returns true if errors were found.
+bool parse_term(parser* p, da* tokens, int* result);
+
+// Parses addition and subtraction. Returns true if errors were found.
+bool parse_expression(parser* p, da* tokens, int* result);
 
 // Parses tokens and prints the result. Returns true if errors were found.
 bool parse(da* tokens);
@@ -127,6 +145,21 @@ bool tokenize(const char* buffer, da* tokens) {
             da_append(tokens, &t);
             i++;
         }
+        else if (is_minus(buffer[i])) {
+            token t = {0, MINUS};
+            da_append(tokens, &t);
+            i++;
+        }
+        else if (is_mult(buffer[i])) {
+            token t = {0, MULTIPLY};
+            da_append(tokens, &t);
+            i++;
+        }
+        else if (is_div(buffer[i])) {
+            token t = {0, DIVIDE};
+            da_append(tokens, &t);
+            i++;
+        }
         else return true;
     }
 
@@ -137,6 +170,18 @@ bool tokenize(const char* buffer, da* tokens) {
 
 bool is_plus(char c) {
     return c == '+';
+}
+
+bool is_minus(char c) {
+    return c == '-';
+}
+
+bool is_mult(char c) {
+    return c == '*';
+}
+
+bool is_div(char c) {
+    return c == '/';
 }
 
 bool is_whitespace(char c) {
@@ -150,6 +195,15 @@ void token_print(token* t) {
         break;
     case PLUS:
         printf("PLUS\n");
+        break;
+    case MINUS:
+        printf("MINUS\n");
+        break;
+    case MULTIPLY:
+        printf("MULTIPLY\n");
+        break;
+    case DIVIDE:
+        printf("DIVIDE\n");
         break;
     default:
         break;
@@ -175,6 +229,62 @@ void parser_consume(parser* p, da* tokens, tktype expected) {
     }
 }
 
+bool parse_term(parser* p, da* tokens, int* result) {
+    if (p->curr.type != NUMBER) return true;
+
+    parser_consume(p, tokens, NUMBER);
+
+    bool is_mult = p->curr.type == MULTIPLY;
+    bool is_div = p->curr.type == DIVIDE;
+    while (is_mult || is_div) {
+        if (is_mult) {
+            parser_consume(p, tokens, MULTIPLY);
+            if (p->curr.type != NUMBER) return true;
+            *result *= p->curr.data;
+            parser_consume(p, tokens, NUMBER);
+        }
+        if (is_div) {
+            parser_consume(p, tokens, DIVIDE);
+            if (p->curr.type != NUMBER) return true;
+            *result /= p->curr.data;
+            parser_consume(p, tokens, NUMBER);
+        }
+    
+        is_mult = p->curr.type == MULTIPLY;
+        is_div = p->curr.type == DIVIDE;
+    }
+    return false;
+}
+
+bool parse_expression(parser* p, da* tokens, int* result) {
+
+    if (parse_term(p, tokens, result)) return true;
+
+    bool is_add = p->curr.type == PLUS;
+    bool is_sub = p->curr.type == MINUS;
+
+    while (is_add || is_sub) {
+        if (is_add) {
+            parser_consume(p, tokens, PLUS);
+            if (p->curr.type != NUMBER) return true;
+            int value = p->curr.data;
+            if (parse_term(p, tokens, &value)) return true;
+            *result += value;
+        }
+        if (is_sub) {
+            parser_consume(p, tokens, MINUS);
+            if (p->curr.type != NUMBER) return true;
+            int value = p->curr.data;
+            if (parse_term(p, tokens, &value)) return true;
+            *result -= value;
+        }
+    
+        is_add = p->curr.type == PLUS;
+        is_sub = p->curr.type == MINUS;
+    }
+    return false;
+}
+
 bool parse(da* tokens) {
     if (tokens->count == 0) return true;
     
@@ -184,8 +294,11 @@ bool parse(da* tokens) {
     if (p.curr.type != NUMBER) return true;
     int result = p.curr.data;
 
-    parser_consume(&p, tokens, NUMBER); 
+    parse_expression(&p, tokens, &result);
 
+#if 0
+
+    parser_consume(&p, tokens, NUMBER); 
     
     while (p.curr.type == PLUS) {
         parser_consume(&p, tokens, PLUS);
@@ -193,6 +306,14 @@ bool parse(da* tokens) {
         result += p.curr.data;
         parser_consume(&p, tokens, NUMBER);
     }
+
+    while (p.curr.type == MINUS) {
+        parser_consume(&p, tokens, MINUS);
+        if (p.curr.type != NUMBER) return true;
+        result -= p.curr.data;
+        parser_consume(&p, tokens, NUMBER);
+    }
+#endif
 
     if (p.curr.type == END) {
         printf("  > Result: %d\n", result);
