@@ -320,13 +320,13 @@ bool parse_expression(parser* p, da* tokens, int* result) {
     while (is_add || is_sub) {
         if (is_add) {
             parser_consume(p, tokens, PLUS);
-            int value = p->curr.data;
+            int value;
             if (parse_term(p, tokens, &value)) return true;
             *result += value;
         }
         if (is_sub) {
             parser_consume(p, tokens, MINUS);
-            int value = p->curr.data;
+            int value;
             if (parse_term(p, tokens, &value)) return true;
             *result -= value;
         }
@@ -343,8 +343,7 @@ bool parse(da* tokens) {
     parser p = {{0}, 0};
     parser_advance(&p, tokens);
 
-    int result = p.curr.data;
-
+    int result;
     if (parse_expression(&p, tokens, &result)) return true;
 
     if (p.curr.type == END) {
