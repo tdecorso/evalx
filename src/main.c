@@ -14,6 +14,8 @@ typedef enum {
     MINUS,
     MULTIPLY,
     DIVIDE,
+    LPAREN,
+    RPAREN,
     END,
 } tktype;
 
@@ -51,6 +53,12 @@ bool is_mult(char c);
 // Returns true if char is a slash sign
 bool is_div(char c);
 
+// Returns true if char is a left parenthesis
+bool is_left_par(char c);
+
+// Returns true if char is a right parenthesis
+bool is_right_par(char c);
+
 // Returns true if char is a white space
 bool is_whitespace(char c);
 
@@ -66,11 +74,17 @@ void parser_advance(parser* p, da* tokens);
 // Makes parser advance if current token type matches expected.
 void parser_consume(parser* p, da* tokens, tktype expected);
 
-// Parses multiplication and division. Returns true if errors were found.
+// Terms are multiplications or divisions of factors.
+//     Returns true if errors were found.
 bool parse_term(parser* p, da* tokens, int* result);
 
-// Parses addition and subtraction. Returns true if errors were found.
+// Expressions are sums of terms.
+//     Returns true if errors were found.
 bool parse_expression(parser* p, da* tokens, int* result);
+
+// Factors are either a number or expressions wrapped into parenthesis.
+//     Returns true if errors were found.
+bool parse_factor(parser* p, da* tokens, int *result);
 
 // Parses tokens and prints the result. Returns true if errors were found.
 bool parse(da* tokens);
@@ -160,6 +174,16 @@ bool tokenize(const char* buffer, da* tokens) {
             da_append(tokens, &t);
             i++;
         }
+        else if (is_left_par(buffer[i])) {
+            token t = {0, LPAREN};
+            da_append(tokens, &t);
+            i++;
+        }
+        else if (is_right_par(buffer[i])) {
+            token t = {0, RPAREN};
+            da_append(tokens, &t);
+            i++;
+        }
         else return true;
     }
 
@@ -186,6 +210,14 @@ bool is_div(char c) {
 
 bool is_whitespace(char c) {
     return c == ' ' || c == '\t';
+}
+
+bool is_left_par(char c) {
+    return c == '(';
+}
+
+bool is_right_par(char c) {
+    return c == ')';
 }
 
 void token_print(token* t) {
@@ -229,10 +261,25 @@ void parser_consume(parser* p, da* tokens, tktype expected) {
     }
 }
 
-bool parse_term(parser* p, da* tokens, int* result) {
-    if (p->curr.type != NUMBER) return true;
+bool parse_factor(parser* p, da* tokens, int *result) {
+    if (p->curr.type == NUMBER) {
+        *result = p->curr.data;
+        parser_consume(p, tokens, NUMBER);
+        return false;
+    }
+    else if (p->curr.type == LPAREN) {
+        parser_consume(p, tokens, LPAREN);
+        parse_expression(p, tokens, result);
+        if (p->curr.type != RPAREN) return true;
+        parser_consume(p, tokens, RPAREN);
+        return false;
+    }
+    return true;
+}
 
-    parser_consume(p, tokens, NUMBER);
+bool parse_term(parser* p, da* tokens, int* result) {
+
+    if (parse_factor(p, tokens, result)) return true;
 
     bool is_mult = p->curr.type == MULTIPLY;
     bool is_div = p->curr.type == DIVIDE;
@@ -291,29 +338,9 @@ bool parse(da* tokens) {
     parser p = {{0}, 0};
     parser_advance(&p, tokens);
 
-    if (p.curr.type != NUMBER) return true;
     int result = p.curr.data;
 
-    parse_expression(&p, tokens, &result);
-
-#if 0
-
-    parser_consume(&p, tokens, NUMBER); 
-    
-    while (p.curr.type == PLUS) {
-        parser_consume(&p, tokens, PLUS);
-        if (p.curr.type != NUMBER) return true;
-        result += p.curr.data;
-        parser_consume(&p, tokens, NUMBER);
-    }
-
-    while (p.curr.type == MINUS) {
-        parser_consume(&p, tokens, MINUS);
-        if (p.curr.type != NUMBER) return true;
-        result -= p.curr.data;
-        parser_consume(&p, tokens, NUMBER);
-    }
-#endif
+    if (parse_expression(&p, tokens, &result)) return true;
 
     if (p.curr.type == END) {
         printf("  > Result: %d\n", result);
