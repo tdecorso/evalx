@@ -275,7 +275,7 @@ bool parse_factor(parser* p, da* tokens, int *result) {
     }
     else if (p->curr.type == LPAREN) {
         parser_consume(p, tokens, LPAREN);
-        parse_expression(p, tokens, result);
+        if (parse_expression(p, tokens, result)) return true;
         if (p->curr.type != RPAREN) return true;
         parser_consume(p, tokens, RPAREN);
         return false;
@@ -292,14 +292,15 @@ bool parse_term(parser* p, da* tokens, int* result) {
     while (is_mult || is_div) {
         if (is_mult) {
             parser_consume(p, tokens, MULTIPLY);
-            int value = p->curr.data;
+            int value;
             if (parse_factor(p, tokens, &value)) return true;
             *result *= value;
         }
         if (is_div) {
             parser_consume(p, tokens, DIVIDE);
-            int value = p->curr.data;
+            int value;
             if (parse_factor(p, tokens, &value)) return true;
+            if (value == 0) return true;
             *result /= value;
         }
     
