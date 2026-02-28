@@ -237,6 +237,12 @@ void token_print(token* t) {
     case DIVIDE:
         printf("DIVIDE\n");
         break;
+    case LPAREN:
+        printf("(\n");
+        break;
+    case RPAREN:
+        printf(")\n");
+        break;
     default:
         break;
     }
