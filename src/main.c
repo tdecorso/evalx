@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 
-#include "tds/da.h"
+#include "tds.h"
 
 #define BUFFER_SIZE 256
 #define TOKENS_CAPACITY 64
@@ -33,7 +33,7 @@ typedef struct {
 void token_print(token* t);
 
 // Helper function to print all tokens in stdout
-void print_tokens(da* tokens);
+void print_tokens(token* tokens);
 
 // Reads and null-terminates input string from stdin.
 void read_input(char* buffer, size_t buffer_size);
@@ -63,35 +63,36 @@ bool is_right_par(char c);
 bool is_whitespace(char c);
 
 // Reads series of digits from buffer and converts it into a token
-bool tokenize_digits(const char* buffer, size_t* index, da* tokens);
+bool tokenize_digits(const char* buffer, size_t* index, token* tokens);
 
 // Processes input to produce array of tokens. Returns true if errors were found.
-bool tokenize(const char* buffer, da* tokens);
+bool tokenize(const char* buffer, token* tokens);
 
 // Updates parser with next token.
-void parser_advance(parser* p, da* tokens);
+void parser_advance(parser* p, token* tokens);
 
 // Makes parser advance if current token type matches expected.
-void parser_consume(parser* p, da* tokens, tktype expected);
+void parser_consume(parser* p, token* tokens, tktype expected);
 
 // Terms are multiplications or divisions of factors.
 //     Returns true if errors were found.
-bool parse_term(parser* p, da* tokens, int* result);
+bool parse_term(parser* p, token* tokens, int* result);
 
 // Expressions are sums of terms.
 //     Returns true if errors were found.
-bool parse_expression(parser* p, da* tokens, int* result);
+bool parse_expression(parser* p, token* tokens, int* result);
 
 // Factors are either a number or expressions wrapped into parenthesis.
 //     Returns true if errors were found.
-bool parse_factor(parser* p, da* tokens, int *result);
+bool parse_factor(parser* p, token* tokens, int *result);
 
 // Parses tokens and prints the result. Returns true if errors were found.
-bool parse(da* tokens);
+bool parse(token* tokens);
 
 int main(void) {
     char buffer[BUFFER_SIZE];
-    da* tokens = da_alloc(sizeof(token), TOKENS_CAPACITY);
+    token* tokens;
+    da_alloc(tokens, TOKENS_CAPACITY);
 
     while (1) {
         printf("  > ");
@@ -125,7 +126,7 @@ bool should_quit(char* buffer) {
     return false;
 }
 
-bool tokenize_digits(const char* buffer, size_t* index, da* tokens) {
+bool tokenize_digits(const char* buffer, size_t* index, token* tokens) {
     char c = buffer[*index];
     char dbuff[64];
     size_t j = 0;
@@ -137,13 +138,12 @@ bool tokenize_digits(const char* buffer, size_t* index, da* tokens) {
 
     dbuff[j] = '\0';
     int value = atoi(dbuff);
-    token t = {value, NUMBER};
-    da_append(tokens, &t);
+    da_push_back(tokens, ((token){value, NUMBER}));
     return false;
 }
 
-bool tokenize(const char* buffer, da* tokens) {
-    tokens->count = 0;
+bool tokenize(const char* buffer, token* tokens) {
+    da_clear(tokens);
     size_t i = 0;
     while (buffer[i] != '\0') {
         if (is_whitespace(buffer[i])) {
@@ -155,40 +155,34 @@ bool tokenize(const char* buffer, da* tokens) {
         }
 
         else if (is_plus(buffer[i])) {
-            token t = {0, PLUS};
-            da_append(tokens, &t);
+            da_push_back(tokens, ((token){0, PLUS}));
             i++;
         }
         else if (is_minus(buffer[i])) {
-            token t = {0, MINUS};
-            da_append(tokens, &t);
+            da_push_back(tokens, ((token){0, MINUS}));
             i++;
         }
         else if (is_mult(buffer[i])) {
-            token t = {0, MULTIPLY};
-            da_append(tokens, &t);
+            da_push_back(tokens, ((token){0, MULTIPLY}));
             i++;
         }
         else if (is_div(buffer[i])) {
-            token t = {0, DIVIDE};
-            da_append(tokens, &t);
+            da_push_back(tokens, ((token){0, DIVIDE}));
             i++;
         }
         else if (is_left_par(buffer[i])) {
-            token t = {0, LPAREN};
-            da_append(tokens, &t);
+            da_push_back(tokens, ((token){0, LPAREN}));
             i++;
         }
         else if (is_right_par(buffer[i])) {
-            token t = {0, RPAREN};
-            da_append(tokens, &t);
+            da_push_back(tokens, ((token){0, RPAREN}));
             i++;
         }
         else return true;
     }
 
-    token end = {0, END};
-    da_append(tokens, &end);
+
+    da_push_back(tokens, ((token){0, END}));
     return false;
 }
 
@@ -248,26 +242,24 @@ void token_print(token* t) {
     }
 }
 
-void print_tokens(da* tokens) {
-    for (size_t i = 0; i < tokens->count; ++i) {
-        token t;
-        da_get(tokens, i, &t);
-        token_print(&t);
+void print_tokens(token* tokens) {
+    for (size_t i = 0; i < da_count(tokens); ++i) {
+        token_print(&tokens[i]);
     }
 }
 
-void parser_advance(parser* p, da* tokens) {
-    da_get(tokens, p->index, &p->curr);
+void parser_advance(parser* p, token* tokens) {
+    p->curr = tokens[p->index];
     p->index++;
 }
 
-void parser_consume(parser* p, da* tokens, tktype expected) {
+void parser_consume(parser* p, token* tokens, tktype expected) {
     if (p->curr.type == expected) {
         parser_advance(p, tokens);
     }
 }
 
-bool parse_factor(parser* p, da* tokens, int *result) {
+bool parse_factor(parser* p, token* tokens, int *result) {
     if (p->curr.type == NUMBER) {
         *result = p->curr.data;
         parser_consume(p, tokens, NUMBER);
@@ -283,7 +275,7 @@ bool parse_factor(parser* p, da* tokens, int *result) {
     return true;
 }
 
-bool parse_term(parser* p, da* tokens, int* result) {
+bool parse_term(parser* p, token* tokens, int* result) {
 
     if (parse_factor(p, tokens, result)) return true;
 
@@ -310,7 +302,7 @@ bool parse_term(parser* p, da* tokens, int* result) {
     return false;
 }
 
-bool parse_expression(parser* p, da* tokens, int* result) {
+bool parse_expression(parser* p, token* tokens, int* result) {
 
     if (parse_term(p, tokens, result)) return true;
 
@@ -337,8 +329,8 @@ bool parse_expression(parser* p, da* tokens, int* result) {
     return false;
 }
 
-bool parse(da* tokens) {
-    if (tokens->count == 0) return true;
+bool parse(token* tokens) {
+    if (da_count(tokens) == 0) return true;
     
     parser p = {{0}, 0};
     parser_advance(&p, tokens);

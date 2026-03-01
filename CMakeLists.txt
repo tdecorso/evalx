@@ -13,6 +13,3 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 add_executable(evalx src/main.c)
 
 target_include_directories(evalx PUBLIC include)
-target_link_directories(evalx PUBLIC lib)
-target_link_libraries(evalx PRIVATE tds)
-
