@@ -1,5 +1,5 @@
-#ifndef H_TDS
-#define H_TDS
+#ifndef H_TDS_DA
+#define H_TDS_DA
 
 #include <stdlib.h>
 
@@ -46,7 +46,6 @@ typedef struct {
         h->count = 0; \
     } while (0);
 
-
 // Returns pointer to dynamic array header
 #define da_header(ptr) ((da_header_t*) (ptr) - 1)
 
@@ -56,4 +55,4 @@ typedef struct {
 // Current capacity of the array
 #define da_capacity(ptr) (da_header(ptr)->capacity)
 
-#endif // H_TDS
+#endif // H_TDS_DA
